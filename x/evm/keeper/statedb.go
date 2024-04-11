@@ -110,7 +110,17 @@ func (k *Keeper) SetAccount(ctx sdk.Context, addr common.Address, account stated
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
 	acct := k.accountKeeper.GetAccount(ctx, cosmosAddr)
 	if acct == nil {
-		acct = k.accountKeeper.NewAccountWithAddress(ctx, cosmosAddr)
+		if account.IsContract() {
+			acct = evmostypes.ProtoAccount()
+			err := acct.SetAddress(cosmosAddr)
+			if err != nil {
+				panic(err)
+			}
+
+			acct = k.accountKeeper.NewAccount(ctx, acct)
+		} else {
+			acct = k.accountKeeper.NewAccountWithAddress(ctx, cosmosAddr)
+		}
 	}
 
 	if err := acct.SetSequence(account.Nonce); err != nil {
