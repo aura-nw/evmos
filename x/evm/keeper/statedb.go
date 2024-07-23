@@ -3,6 +3,7 @@
 package keeper
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 
@@ -11,6 +12,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	evmostypes "github.com/evmos/evmos/v18/types"
 	"github.com/evmos/evmos/v18/x/evm/statedb"
@@ -128,6 +130,26 @@ func (k *Keeper) SetAccount(ctx sdk.Context, addr common.Address, account stated
 	}
 
 	codeHash := common.BytesToHash(account.CodeHash)
+
+	if _, ok := acct.(evmostypes.EthAccountI); !ok && !bytes.Equal(account.CodeHash, types.EmptyCodeHash) {
+		newAcct := evmostypes.EthAccount{
+			BaseAccount: &authtypes.BaseAccount{},
+			CodeHash:    common.BytesToHash(types.EmptyCodeHash).String(),
+		}
+		err := newAcct.SetAddress(cosmosAddr)
+		if err != nil {
+			panic(err)
+		}
+		newBaseAccount := newAcct.GetBaseAccount()
+		newBaseAccount.SetAccountNumber(acct.GetAccountNumber())
+		newBaseAccount.SetPubKey(acct.GetPubKey())
+		newBaseAccount.SetSequence(acct.GetSequence())
+
+		k.accountKeeper.SetAccount(ctx, &newAcct)
+
+		acct = k.accountKeeper.GetAccount(ctx, cosmosAddr)
+	}
+
 
 	if ethAcct, ok := acct.(evmostypes.EthAccountI); ok {
 		if err := ethAcct.SetCodeHash(codeHash); err != nil {
