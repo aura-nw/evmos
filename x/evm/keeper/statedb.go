@@ -141,15 +141,18 @@ func (k *Keeper) SetAccount(ctx sdk.Context, addr common.Address, account stated
 			panic(err)
 		}
 		newBaseAccount := newAcct.GetBaseAccount()
-		newBaseAccount.SetAccountNumber(acct.GetAccountNumber())
-		newBaseAccount.SetPubKey(acct.GetPubKey())
-		newBaseAccount.SetSequence(acct.GetSequence())
+		errAN := newBaseAccount.SetAccountNumber(acct.GetAccountNumber())
+		errPK := newBaseAccount.SetPubKey(acct.GetPubKey())
+		errSq := newBaseAccount.SetSequence(acct.GetSequence())
+
+		if errAN != nil || errPK != nil || errSq != nil {
+			panic(fmt.Sprintf("error setting account number, pubkey or sequence: %s, %s, %s", errAN, errPK, errSq))
+		}
 
 		k.accountKeeper.SetAccount(ctx, &newAcct)
 
 		acct = k.accountKeeper.GetAccount(ctx, cosmosAddr)
 	}
-
 
 	if ethAcct, ok := acct.(evmostypes.EthAccountI); ok {
 		if err := ethAcct.SetCodeHash(codeHash); err != nil {
