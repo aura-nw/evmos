@@ -4,6 +4,7 @@
 package keeper
 
 import (
+	"fmt"
 	errorsmod "cosmossdk.io/errors"
 	"github.com/armon/go-metrics"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -51,6 +52,7 @@ func (k Keeper) OnRecvPacket(
 		WithTransientKVGasConfig(storetypes.GasConfig{})
 
 	if !k.IsERC20Enabled(ctx) {
+		fmt.Printf("convert ibc to erc-20: 1")
 		return ack
 	}
 
@@ -65,6 +67,7 @@ func (k Keeper) OnRecvPacket(
 	// if sender == recipient, and is not from an EVM Channel recovery was executed
 	if sender.Equals(recipient) && !evmParams.IsEVMChannel(packet.DestinationChannel) {
 		// Continue to the next IBC middleware by returning the original ACK.
+		fmt.Printf("convert ibc to erc-20: 2")
 		return ack
 	}
 
@@ -72,6 +75,7 @@ func (k Keeper) OnRecvPacket(
 
 	// return acknoledgement without conversion if sender is a module account
 	if types.IsModuleAccount(senderAcc) {
+		fmt.Printf("convert ibc to erc-20: 3")
 		return ack
 	}
 
@@ -86,6 +90,7 @@ func (k Keeper) OnRecvPacket(
 	bondDenom := k.stakingKeeper.BondDenom(ctx)
 	if coin.Denom == bondDenom {
 		// no-op, received coin is the staking denomination
+		fmt.Printf("convert ibc to erc-20: 4")
 		return ack
 	}
 
@@ -93,12 +98,14 @@ func (k Keeper) OnRecvPacket(
 	if len(pairID) == 0 {
 		// short-circuit: if the denom is not registered, conversion will fail
 		// so we can continue with the rest of the stack
+		fmt.Printf("convert ibc to erc-20: 5")
 		return ack
 	}
 
 	pair, _ := k.GetTokenPair(ctx, pairID)
 	if !pair.Enabled {
 		// no-op: continue with the rest of the stack without conversion
+		fmt.Printf("convert ibc to erc-20: 6")
 		return ack
 	}
 
@@ -116,7 +123,9 @@ func (k Keeper) OnRecvPacket(
 	if _, err = k.ConvertCoin(sdk.WrapSDKContext(ctx), msg); err != nil {
 		return channeltypes.NewErrorAcknowledgement(err)
 	}
-
+	
+	fmt.Printf("convert ibc to erc-20: 7")
+	
 	defer func() {
 		telemetry.IncrCounterWithLabels(
 			[]string{types.ModuleName, "ibc", "on_recv", "total"},
